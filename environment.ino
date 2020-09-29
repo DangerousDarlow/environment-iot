@@ -22,7 +22,16 @@ PubSubClient mqttClient(broker, 1883, handleMessage, wifiClient);
 
 Adafruit_AM2320 am2320 = Adafruit_AM2320();
 
-void setup() {
+// true if the board has woken up from deepSleep
+bool wokenUp = false;
+
+void setup()
+{
+    initialise();
+}
+
+void initialise()
+{
     Serial.begin(115200);
 
     // make sure you have a long delay so you stand a chance
@@ -42,8 +51,8 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED)
     {
         ++waits;
-        if (waits == 10)
-        {
+        if (waits == 5)
+        {18010
             // wifi hasn't worked so start it again
             Serial.println("wifi connect");
             WiFi.begin(ssid, key);
@@ -68,8 +77,14 @@ void setup() {
 
 String buildMessage()
 {
-    float const temperature = am2320.readTemperature();
+    float temperature = 0;
+    do
+    {
+       temperature = am2320.readTemperature();
+    } while (isnan(temperature));
+        
     float const humidity = am2320.readHumidity();
+
     String message = "environment/temperature+humidity,location=living\\ room";
     message += " temperature=";
     message += temperature;
@@ -79,15 +94,14 @@ String buildMessage()
 }
 
 void loop() {
+    if (wokenUp)
+        initialise();
+
     String const message = buildMessage();
     if (mqttClient.publish(topic, message.c_str()))
-    {
         Serial.println("published " + message);
-    }
     else
-    {
         Serial.println("failed to publish");
-    }
 
     mqttClient.flush();
     wifiClient.flush();
@@ -95,11 +109,8 @@ void loop() {
     int const sleepMinutes = 2;
     Serial.println("sleep minutes");
     Serial.println(sleepMinutes);
+    LowPower.deepSleep(sleepMinutes * 60 * 1000);
+    wokenUp = true;
 
-    // the device will restart after this period of time and run through everything again including setup.
-    // USB will disconnect so no further serial comms will be received.
-    // LowPower.deepSleep(sleepMinutes * 60 * 1000);
-
-    // comment out deepSleep and use this for debugging
-    delay(2 * 1000);
+    // delay(2 * 1000);
 }
