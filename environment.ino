@@ -1,5 +1,6 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_AM2320.h>
+#include <ArduinoLowPower.h>
 #include <PubSubClient.h>
 #include <WiFiNINA.h>
 
@@ -23,7 +24,13 @@ Adafruit_AM2320 am2320 = Adafruit_AM2320();
 
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+
+    // make sure you have a long delay so you stand a chance
+    // of reprogramming the device before it deep sleeps
+    delay(5000);
+
+    // this is to aid diagnostics should I ever have multiple devices and forget which one is which
+    Serial.println(location);
 
     // start the temperature and humidity sensor
     am2320.begin();
@@ -35,7 +42,7 @@ void setup() {
     while (WiFi.status() != WL_CONNECTED)
     {
         ++waits;
-        if (waits == 5)
+        if (waits == 10)
         {
             // wifi hasn't worked so start it again
             Serial.println("wifi connect");
@@ -82,5 +89,17 @@ void loop() {
         Serial.println("failed to publish");
     }
 
-    delay(2000);
+    mqttClient.flush();
+    wifiClient.flush();
+
+    int const sleepMinutes = 2;
+    Serial.println("sleep minutes");
+    Serial.println(sleepMinutes);
+
+    // the device will restart after this period of time and run through everything again including setup.
+    // USB will disconnect so no further serial comms will be received.
+    // LowPower.deepSleep(sleepMinutes * 60 * 1000);
+
+    // comment out deepSleep and use this for debugging
+    delay(2 * 1000);
 }
