@@ -8,7 +8,6 @@
 
 char const ssid[] = SSID;
 char const key[] = KEY;
-int status = WL_IDLE_STATUS;
 WiFiClient wifiClient;
 
 void handleMessage(char * topic, byte * payload, unsigned int length)
@@ -52,7 +51,7 @@ void initialise()
     {
         ++waits;
         if (waits == 5)
-        {18010
+        {
             // wifi hasn't worked so start it again
             Serial.println("wifi connect");
             WiFi.begin(ssid, key);
@@ -77,12 +76,7 @@ void initialise()
 
 String buildMessage()
 {
-    float temperature = 0;
-    do
-    {
-       temperature = am2320.readTemperature();
-    } while (isnan(temperature));
-        
+    float const temperature = am2320.readTemperature();
     float const humidity = am2320.readHumidity();
 
     String message = "environment/temperature+humidity,location=living\\ room";
@@ -106,9 +100,15 @@ void loop() {
     mqttClient.flush();
     wifiClient.flush();
 
-    int const sleepMinutes = 2;
+    int const sleepMinutes = 5;
     Serial.println("sleep minutes");
     Serial.println(sleepMinutes);
+
+    // Without this delay the mqtt message is never received.
+    // I suspect WiFi is shutdown before it’s buffer is flushed.
+    delay(5000);
+
+    WiFi.end();
     LowPower.deepSleep(sleepMinutes * 60 * 1000);
     wokenUp = true;
 
