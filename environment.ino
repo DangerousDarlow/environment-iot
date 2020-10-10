@@ -14,7 +14,7 @@ void handleMessage(char * topic, byte * payload, unsigned int length)
 {
 }
 
-char const * const location = "living_room";
+char const * const location = "window";
 char const * const broker = "192.168.0.29";
 char const * const topic = "sensors";
 PubSubClient mqttClient(broker, 1883, handleMessage, wifiClient);
@@ -26,6 +26,7 @@ bool wokenUp = false;
 
 void setup()
 {
+    analogReadResolution(12);
     initialise();
 }
 
@@ -74,12 +75,13 @@ void initialise()
     }
 }
 
-String buildMessage()
+String buildTempHumMessage()
 {
     float const temperature = am2320.readTemperature();
     float const humidity = am2320.readHumidity();
 
-    String message = "environment/temperature+humidity,location=living\\ room";
+    String message = "environment/temperature+humidity,location=";
+    message += location;
     message += " temperature=";
     message += temperature;
     message += ",humidity=";
@@ -87,19 +89,39 @@ String buildMessage()
     return message;
 }
 
-void loop() {
-    if (wokenUp)
-        initialise();
+String buildLightMessage()
+{
+    int const brightness = analogRead(PIN_A1);
 
-    String const message = buildMessage();
+    String message = "environment/light,location=";
+    message += location;
+    message += " brightness=";
+    message += brightness;
+    return message;
+}
+
+String buildBatteryMessage()
+{
+    int const voltage = analogRead(ADC_BATTERY);
+
+    String message = "device/battery,location=";
+    message += location;
+    message += " voltage=";
+    message += voltage;
+    return message;
+}
+
+void publish(String const & message)
+{
     if (mqttClient.publish(topic, message.c_str()))
-        Serial.println("published " + message);
+        Serial.println("published: " + message);
     else
-        Serial.println("failed to publish");
+        Serial.println("failed to publish: " + message);
 
-    mqttClient.flush();
-    wifiClient.flush();
+}
 
+void deepSleep()
+{
     int const sleepMinutes = 5;
     Serial.println("sleep minutes");
     Serial.println(sleepMinutes);
@@ -111,6 +133,19 @@ void loop() {
     WiFi.end();
     LowPower.deepSleep(sleepMinutes * 60 * 1000);
     wokenUp = true;
+}#
 
-    // delay(2 * 1000);
+void loop() {
+    if (wokenUp)
+        initialise();
+
+    publish(buildTempHumMessage());
+    publish(buildLightMessage());
+    publish(buildBatteryMessage());
+
+    mqttClient.flush();
+    wifiClient.flush();
+
+    deepSleep();
+    //delay(2 * 1000);
 }
