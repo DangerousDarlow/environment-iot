@@ -1,0 +1,47 @@
+version: '3'
+services:
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis
+    restart: always
+    ports:
+      - 6379:6379
+
+  telegraf-sensors:
+    container_name: telegraf-sensors
+    hostname: telegraf-sensors
+    image: telegraf
+    restart: always
+    volumes:
+      - /home/pi/telegraf-sensors.conf:/etc/telegraf/telegraf.conf:ro
+
+  telegraf-systems:
+    container_name: telegraf-systems
+    hostname: telegraf-systems
+    image: telegraf
+    restart: always
+    volumes:
+      - /home/pi/telegraf-systems.conf:/etc/telegraf/telegraf.conf:ro
+
+  grafana:
+    container_name: grafana
+    hostname: grafana
+    image: grafana/grafana
+    restart: always
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_storage:/var/lib/grafana
+
+  mosquitto:
+    container_name: mosquitto
+    hostname: mosquitto
+    image: eclipse-mosquitto
+    restart: always
+    ports:
+      - 1883:1883
+      - 9001:9001
+
+volumes:
+  grafana_storage:

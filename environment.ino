@@ -133,7 +133,7 @@ void deepSleep()
     WiFi.end();
     LowPower.deepSleep(sleepMinutes * 60 * 1000);
     wokenUp = true;
-}#
+}
 
 void loop() {
     if (wokenUp)
