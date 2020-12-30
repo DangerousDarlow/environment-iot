@@ -14,9 +14,10 @@ void handleMessage(char * topic, byte * payload, unsigned int length)
 {
 }
 
-char const * const location = "window";
+char const * const location = "outside";
 char const * const broker = "192.168.0.29";
-char const * const topic = "sensors";
+char const * const sensorsTopic = "sensors";
+char const * const systemsTopic = "systems";
 PubSubClient mqttClient(broker, 1883, handleMessage, wifiClient);
 
 Adafruit_AM2320 am2320 = Adafruit_AM2320();
@@ -75,9 +76,24 @@ void initialise()
     }
 }
 
+// The sensor temperature response is assumed to be linear across the expected range.
+// These values calibrate the specific device.
+const float gradient = 1.0447815f;
+const float offset = -0.24073213f;
+
 String buildTempHumMessage()
 {
-    float const temperature = am2320.readTemperature();
+    // The first couple of readings are often inaccurate so ignore them
+    int count = 0;
+    while(count < 5)
+    {
+        ++count;
+        am2320.readTemperature();
+        delay(1000);
+
+    }
+
+    float const temperature = am2320.readTemperature() * gradient + offset;
     float const humidity = am2320.readHumidity();
 
     String message = "environment/temperature+humidity,location=";
@@ -86,17 +102,6 @@ String buildTempHumMessage()
     message += temperature;
     message += ",humidity=";
     message += humidity;
-    return message;
-}
-
-String buildLightMessage()
-{
-    int const brightness = analogRead(PIN_A1);
-
-    String message = "environment/light,location=";
-    message += location;
-    message += " brightness=";
-    message += brightness;
     return message;
 }
 
@@ -111,9 +116,9 @@ String buildBatteryMessage()
     return message;
 }
 
-void publish(String const & message)
+void publish(String const & topic, String const & message)
 {
-    if (mqttClient.publish(topic, message.c_str()))
+    if (mqttClient.publish(topic.c_str(), message.c_str()))
         Serial.println("published: " + message);
     else
         Serial.println("failed to publish: " + message);
@@ -139,9 +144,8 @@ void loop() {
     if (wokenUp)
         initialise();
 
-    publish(buildTempHumMessage());
-    publish(buildLightMessage());
-    publish(buildBatteryMessage());
+    publish(sensorsTopic, buildTempHumMessage());
+    publish(systemsTopic, buildBatteryMessage());
 
     mqttClient.flush();
     wifiClient.flush();
